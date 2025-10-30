@@ -1,24 +1,24 @@
-# Configuração do proxy reverso com Load Balancing + HTTPS
-# HTTPS: Cliente → Caddy (HTTPS) → Backends (HTTP)
-
-# Servidor HTTPS (porta 443)
-backend.local {
-    # Caddy gera automaticamente certificado autoassinado para localhost
+cine.locadora.local {
     
-    # Rota /app1 - acessa apenas o servidor 1
+    # Recursos estáticos do Next.js - devem ser proxy para qualquer backend
+    handle /_next/* {
+        reverse_proxy frontend1:3000 frontend2:3000
+    }
+    
+    handle /favicon.ico {
+        reverse_proxy frontend1:3000 frontend2:3000
+    }
+    
     handle_path /app1* {
-        reverse_proxy python-server-1:8000
+        reverse_proxy frontend1:3000
     }
 
-    # Rota /app2 - acessa apenas o servidor 2
     handle_path /app2* {
-        reverse_proxy python-server-2:8000
+        reverse_proxy frontend2:3000
     }
 
-    # Rota /balanced - Load balancing com round-robin + health checks
-    handle_path /balanced* {
-        reverse_proxy python-server-1:8000 python-server-2:8000 {
-            # Health check - verifica se o backend está respondendo
+    handle_path / {
+        reverse_proxy frontend1:3000 frontend2:3000 {
             health_uri /
             health_interval 10s
             health_timeout 5s
@@ -28,7 +28,7 @@ backend.local {
 
     # Rota /balanced-random - Load balancing aleatório
     handle_path /balanced-random* {
-        reverse_proxy python-server-1:8000 python-server-2:8000 {
+        reverse_proxy frontend1:3000 frontend2:3000 {
             lb_policy random
             health_uri /
             health_interval 10s
@@ -38,7 +38,7 @@ backend.local {
 
     # Rota /balanced-least - Encaminha para o servidor com menos conexões
     handle_path /balanced-least* {
-        reverse_proxy python-server-1:8000 python-server-2:8000 {
+        reverse_proxy frontend1:3000 frontend2:3000 {
             lb_policy least_conn
             health_uri /
             health_interval 10s
@@ -48,7 +48,7 @@ backend.local {
 
     # Rota /balanced-ip - Sticky session por IP (mesmo cliente, mesmo servidor)
     handle_path /balanced-ip* {
-        reverse_proxy python-server-1:8000 python-server-2:8000 {
+        reverse_proxy frontend1:3000 frontend2:3000 {
             lb_policy ip_hash
             health_uri /
             health_interval 10s
@@ -56,8 +56,7 @@ backend.local {
         }
     }
 
-    # Página inicial
-    handle / {
+    handle /info {
         respond "Proxy Reverso Caddy com Load Balancing + HTTPS
         
 Rotas disponíveis:
@@ -72,7 +71,6 @@ Rotas disponíveis:
     }
 }
 
-# Redireciona HTTP (porta 80) para HTTPS (porta 443)
 :80 {
     redir https://backend.local{uri} permanent
 }

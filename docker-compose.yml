@@ -19,27 +19,96 @@ services:
     networks:
       - app-net
 
-  python-server-1:
-    image: "python:3.11-alpine"
-    container_name: python-server-1
-    restart: unless-stopped
-    # Nenhuma porta é exposta ao HOST, pois o Caddy acessará pela rede interna 'app-net'
-    # ports:
-    #   - "8000:8000"
-    command: sh -c 'echo "<h1>Olá do Servidor Python 1</h1>" > index.html && python -m http.server 8000'
+  # python-server-1:
+  #   image: "python:3.11-alpine"
+  #   container_name: python-server-1
+  #   restart: unless-stopped
+  #   # Nenhuma porta é exposta ao HOST, pois o Caddy acessará pela rede interna 'app-net'
+  #   # ports:
+  #   #   - "8000:8000"
+  #   command: sh -c 'echo "<h1>Olá do Servidor Python 1</h1>" > index.html && python -m http.server 8000'
+  #   networks:
+  #     - app-net
+
+  # python-server-2:
+  #   image: "python:3.11-alpine"
+  #   container_name: python-server-2
+  #   restart: unless-stopped
+  #   # Nenhuma porta é exposta ao HOST, pois o Caddy acessará pela rede interna 'app-net'
+  #   # ports:
+  #   #   - "8000:8000"
+  #   command: sh -c 'echo "<h1>Bem-vindo ao Servidor Python 2</h1>" > index.html && python -m http.server 8000'
+  #   networks:
+  #     - app-net
+
+  db:
+    image: postgres:16
+    container_name: postgres_db
+    environment:
+      POSTGRES_DB: TrabalhoDEVWEB2
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5430:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d TrabalhoDEVWEB2"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     networks:
       - app-net
 
-  python-server-2:
-    image: "python:3.11-alpine"
-    container_name: python-server-2
-    restart: unless-stopped
-    # Nenhuma porta é exposta ao HOST, pois o Caddy acessará pela rede interna 'app-net'
-    # ports:
-    #   - "8000:8000"
-    command: sh -c 'echo "<h1>Bem-vindo ao Servidor Python 2</h1>" > index.html && python -m http.server 8000'
+  backend:
+    image: andregaros/back-caio:1.0
+    container_name: backend-app
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/TrabalhoDEVWEB2
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
     networks:
       - app-net
+
+  frontend1:
+    image: frontend:1.1.0
+    container_name: frontend-app1
+    ports:
+      - "3000:3000"
+    environment:
+      # Configurações da API Backend
+      - NEXT_PUBLIC_API_PROTOCOL=http
+      - NEXT_PUBLIC_API_HOST=backend
+      - NEXT_PUBLIC_API_PORT=8080
+      - NODE_ENV=production
+    networks:
+      - app-net
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  frontend2:
+    image: frontend:1.1.0
+    container_name: frontend-app2
+    ports:
+      - "3001:3000"
+    environment:
+      # Configurações da API Backend
+      - NEXT_PUBLIC_API_PROTOCOL=http
+      - NEXT_PUBLIC_API_HOST=backend
+      - NEXT_PUBLIC_API_PORT=8080
+      - NODE_ENV=production
+    networks:
+      - app-net
+    depends_on:
+      - backend
+    restart: unless-stopped
 
 # Define a rede que os contêineres usarão para se comunicar
 networks:
@@ -49,3 +118,4 @@ networks:
 # Define os volumes nomeados
 volumes:
   caddy_data:
+  pgdata:
