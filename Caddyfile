@@ -1,0 +1,78 @@
+# Configuração do proxy reverso com Load Balancing + HTTPS
+# HTTPS: Cliente → Caddy (HTTPS) → Backends (HTTP)
+
+# Servidor HTTPS (porta 443)
+servidor.local {
+    # Caddy gera automaticamente certificado autoassinado para localhost
+    
+    # Rota /app1 - acessa apenas o servidor 1
+    handle_path /app1* {
+        reverse_proxy python-server-1:8000
+    }
+
+    # Rota /app2 - acessa apenas o servidor 2
+    handle_path /app2* {
+        reverse_proxy python-server-2:8000
+    }
+
+    # Rota /balanced - Load balancing com round-robin + health checks
+    handle_path /balanced* {
+        reverse_proxy python-server-1:8000 python-server-2:8000 {
+            # Health check - verifica se o backend está respondendo
+            health_uri /
+            health_interval 10s
+            health_timeout 5s
+            health_status 200
+        }
+    }
+
+    # Rota /balanced-random - Load balancing aleatório
+    handle_path /balanced-random* {
+        reverse_proxy python-server-1:8000 python-server-2:8000 {
+            lb_policy random
+            health_uri /
+            health_interval 10s
+            health_timeout 5s
+        }
+    }
+
+    # Rota /balanced-least - Encaminha para o servidor com menos conexões
+    handle_path /balanced-least* {
+        reverse_proxy python-server-1:8000 python-server-2:8000 {
+            lb_policy least_conn
+            health_uri /
+            health_interval 10s
+            health_timeout 5s
+        }
+    }
+
+    # Rota /balanced-ip - Sticky session por IP (mesmo cliente, mesmo servidor)
+    handle_path /balanced-ip* {
+        reverse_proxy python-server-1:8000 python-server-2:8000 {
+            lb_policy ip_hash
+            health_uri /
+            health_interval 10s
+            health_timeout 5s
+        }
+    }
+
+    # Página inicial
+    handle / {
+        respond "Proxy Reverso Caddy com Load Balancing + HTTPS
+        
+Rotas disponíveis:
+- /app1 → Servidor 1 apenas
+- /app2 → Servidor 2 apenas
+- /balanced → Load balancing Round-Robin (padrão)
+- /balanced-random → Load balancing Aleatório
+- /balanced-least → Menor número de conexões
+- /balanced-ip → Sticky session por IP
+
+🔒 Conexão segura via HTTPS"
+    }
+}
+
+# Redireciona HTTP (porta 80) para HTTPS (porta 443)
+:80 {
+    redir https://servidor.local{uri} permanent
+}

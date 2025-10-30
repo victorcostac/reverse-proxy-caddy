@@ -1,0 +1,51 @@
+version: "3.7"
+
+services:
+  caddy:
+    image: "caddy:2.9-alpine"
+    container_name: caddy-proxy
+    restart: unless-stopped
+    ports:
+      # Expõe a porta 80 do host para o Caddy
+      - "80:80"
+      # A porta 443 é para HTTPS (o Caddy pode gerenciar isso automaticamente)
+      - "443:443"
+      - "2019:2019"
+    volumes:
+      # Monta o Caddyfile local no contêiner
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      # Volume para persistir dados do Caddy (como certificados SSL)
+      - caddy_data:/data
+    networks:
+      - app-net
+
+  python-server-1:
+    image: "python:3.11-alpine"
+    container_name: python-server-1
+    restart: unless-stopped
+    # Nenhuma porta é exposta ao HOST, pois o Caddy acessará pela rede interna 'app-net'
+    # ports:
+    #   - "8000:8000"
+    command: sh -c 'echo "<h1>Olá do Servidor Python 1</h1>" > index.html && python -m http.server 8000'
+    networks:
+      - app-net
+
+  python-server-2:
+    image: "python:3.11-alpine"
+    container_name: python-server-2
+    restart: unless-stopped
+    # Nenhuma porta é exposta ao HOST, pois o Caddy acessará pela rede interna 'app-net'
+    # ports:
+    #   - "8000:8000"
+    command: sh -c 'echo "<h1>Bem-vindo ao Servidor Python 2</h1>" > index.html && python -m http.server 8000'
+    networks:
+      - app-net
+
+# Define a rede que os contêineres usarão para se comunicar
+networks:
+  app-net:
+    driver: bridge
+
+# Define os volumes nomeados
+volumes:
+  caddy_data:
