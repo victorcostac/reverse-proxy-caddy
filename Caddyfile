@@ -2,7 +2,7 @@
 # HTTPS: Cliente → Caddy (HTTPS) → Backends (HTTP)
 
 # Servidor HTTPS (porta 443)
-servidor.local {
+backend.local {
     # Caddy gera automaticamente certificado autoassinado para localhost
     
     # Rota /app1 - acessa apenas o servidor 1
@@ -74,5 +74,5 @@ Rotas disponíveis:
 
 # Redireciona HTTP (porta 80) para HTTPS (porta 443)
 :80 {
-    redir https://servidor.local{uri} permanent
+    redir https://backend.local{uri} permanent
 }
