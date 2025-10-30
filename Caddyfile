@@ -1,5 +1,10 @@
 cine.locadora.local {
     
+    # API Backend - proxy para o backend (para requisições client-side dos frontends)
+    handle /api/* {
+        reverse_proxy backend:8080
+    }
+    
     # Recursos estáticos do Next.js - devem ser proxy para qualquer backend
     handle /_next/* {
         reverse_proxy frontend1:3000 frontend2:3000
@@ -15,15 +20,6 @@ cine.locadora.local {
 
     handle_path /app2* {
         reverse_proxy frontend2:3000
-    }
-
-    handle_path / {
-        reverse_proxy frontend1:3000 frontend2:3000 {
-            health_uri /
-            health_interval 10s
-            health_timeout 5s
-            health_status 200
-        }
     }
 
     # Rota /balanced-random - Load balancing aleatório
@@ -69,8 +65,18 @@ Rotas disponíveis:
 
 🔒 Conexão segura via HTTPS"
     }
+
+    # Rota padrão - Load balancing para todas as outras rotas (/, /ator, /diretor, etc.)
+    handle /* {
+        reverse_proxy frontend1:3000 frontend2:3000 {
+            health_uri /
+            health_interval 10s
+            health_timeout 5s
+            health_status 200
+        }
+    }
 }
 
 :80 {
-    redir https://backend.local{uri} permanent
+    redir https://cine.locadora.local{uri} permanent
 }
